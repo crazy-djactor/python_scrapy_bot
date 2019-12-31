@@ -1,6 +1,8 @@
-<h1> python_scrapy_bot <h1>
+<h1> python_scrapy_bot </h1>
 ##################
+
 This project includes some several python bot & scrapping projects.
+
 1) Betacompanieshouse
    https://github.com/crazy-djactor/python_scrapy_bot/tree/master/betacompanieeshouse/betacompanieeshousee
    
