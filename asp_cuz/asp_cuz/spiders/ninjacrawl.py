@@ -2,6 +2,10 @@
 import hashlib
 from datetime import datetime
 import scrapy
+from lxml import html
+from lxml import etree
+
+import requests
 from queue import Queue
 
 
@@ -9,18 +13,15 @@ class NinjacrawlSpider(scrapy.Spider):
     name = 'ninjacrawl'
     # allowed_domains = ['https://nahlizenidokn.cuzk.cz/']
     start_urls = ['https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba']
+    init_url = 'https://nahlizenidokn.cuzk.cz/'
 
     def __init__(self, param):
         super(NinjacrawlSpider, self).__init__()
         self.url = 'http://api.scraperapi.com/?api_key=706d6b1402b62de7cb68182b51ab6d9b&url=' + 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
-        self.spider_row_data =[{"kod_budovy": "19374691",
-            "typ_stavebniho_objektu": "budova s číslem popisným",
-            "cislo_domovni": ["35"],
-            "nazev_casti_obce": "Židenice",
-            "kod_obce": "582786"},
-            {"kod_budovy": "19416768",
+        self.spider_row_data =[
+            {"kod_budovy": "19374712",
            "typ_stavebniho_objektu": "budova s číslem popisným",
-           "cislo_domovni": ["42"],
+           "cislo_domovni": ["4056", "4058"],
            "nazev_casti_obce": "Židenice",
            "kod_obce": "582786"}]
         # self.spider_row_data = param["row_data"]
@@ -28,21 +29,21 @@ class NinjacrawlSpider(scrapy.Spider):
 
     def start_requests(self):
         # url = 'http://api.scraperapi.com/?api_key=706d6b1402b62de7cb68182b51ab6d9b&url=' + self.url
+        self.url = 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
         for row_data in self.spider_row_data:
             yield scrapy.Request(self.url, method="POST", callback=self.parse, meta=row_data)
         # yield scrapy.Request(url, method="POST", callback=self.parse)
 
     def parse_type_back(self, response):
         row_data = response.meta
-        h2 = response.xpath('//*[@id="content"]/h2[1]').extract()
+        h2 = response.xpath('//*[@id="content"]/h2[1]/text()').extract_first()
         if h2 == 'Vymezené jednotky':
             ret_data = self.type2_page(response, row_data["kod_budovy"])
             self.process_postgresql(ret_data, row_data["kod_budovy"])
-            pass
         else:
             ret_data = self.type1_page(response)
             # self.process_postgresql(ret_data, row_data["kod_budovy"])
-        pass
+        return
 
     def parse_obec_click(self, response):  # input 4053
         row_data = response.meta
@@ -110,6 +111,7 @@ class NinjacrawlSpider(scrapy.Spider):
                 dont_filter=True,
                 meta=row_data
             )
+            break
 
     def checkvalid(self, param):
         if param is None:
@@ -169,129 +171,93 @@ class NinjacrawlSpider(scrapy.Spider):
             # input_5.send_keys(Keys.ENTER)
         return True
 
-    # def type2_page(self, browser, kod_budovy):
-    #     ret_data = {
-    #         "cislo_lv": "",
-    #         "vymera": "",
-    #         "druh_pozemku": "",
-    #         "budova_s_cislem": "",
-    #         "adresni_mista": [],
-    #         "omezeni_vlastnickeho_prava": [],
-    #         "jine_zapisy": [],
-    #         "rizeni_cenovy_udaj": "",
-    #         "zpusob_vyuziti": "",
-    #         "parcelni_cislo": "",
-    #         "cislo_jednotky": [],
-    #         "vlastnicke_pravo": [],  # this is list
-    #         "podil": [],
-    #         "invalid_record": ""
-    #     }
-    #
-    #     ret_data["parcelni_cislo"] = browser.xpath('//*[@id="content"]/table[1]/tbody/tr[6]/td[2]/a').text
-    #
-    #     ret_data["cislo_lv"] = browser.xpath('//*[@id="content"]/table[1]/tbody/tr[5]/td[2]/a').text
-    #
-    #     ret_data["zpusob_vyuziti"] = browser.xpath('//*[@id="content"]/table[1]/tbody/tr[8]/td[2]').text
-    #
-    #     information_btn = browser.xpath('//*[@id="ui-accordion-1-header-0"]')
-    #     information_btn.click()
-    #
-    #         # wait for search button visible - that means web-loading finished
-    #         WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.ID, 'ui-accordion-1-panel-0')))
-    #     except TimeoutException:
-    #         print("page2 - information button click err")
-    #         return
-    #
-    #     ret_data["adresni_mista"] = []
-    #     try:
-    #         zRuian = browser.xpath('//*[@id="ui-accordion-1-panel-0"]/table')  # list
-    #         for td_ in zRuian.find_elements(By.TAG_NAME, 'tr'):
-    #             if td_.xpath('.//td[1]').text == 'Adresní místa:':
-    #                 ret_data["adresni_mista"].append(zRuian.xpath('.//td[2]/a').text)
-    #     except NoSuchElementException:
-    #         pass
-    #
-    #     try:
-    #         jednots = browser.xpath('//*[@id="content"]/table[2]/tbody/tr/td').find_elements(
-    #             By.TAG_NAME, 'a')  # list
-    #         i = 0
-    #         jednot_count = len(jednots)
-    #         for i in range(0, jednot_count):
-    #             WebDriverWait(browser, 10).until(EC.presence_of_element_located((By.ID, 'ui-accordion-1-panel-0')))
-    #
-    #             jednots = browser.xpath('//*[@id="content"]/table[2]/tbody/tr/td').find_elements(
-    #                 By.TAG_NAME, 'a')  # list
-    #             jednot = jednots[i]
-    #             ret_data["cislo_jednotky"].append(jednot.text)
-    #             cislo_jednotky = jednot.text
-    #             jednot.click()
-    #             # browser1 = self.create_web_driver()
-    #             # link_jednotkey = jednot.get_attribute("href")
-    #             # browser.get(link_jednotkey)
-    #
-    #             WebDriverWait(browser, 10).until(
-    #                 EC.presence_of_element_located((By.ID, 'ctl00_updatePanelHlaseniOnMasterPage')))
-    #             self.type3_page(browser, cislo_jednotky, kod_budovy)
-    #             browser.back()
-    #     except NoSuchElementException:
-    #         pass
-    #     browser.back()
-    #     return ret_data
-    #
-    # def type3_page(self, browser1, jednotky, kod_budovy):
-    #     ret_data = {
-    #         "kod_budovy": kod_budovy,
-    #         "cislo_jednotky": "",
-    #         "typ_jednotky": "",
-    #         "cislo_lv_jednotka": "",
-    #         "zpusob_vyuziti_jednotky": "",
-    #         "vlastnicke_pravo": [],
-    #         "podil_spol_casti": [],
-    #         "checksum": "",
-    #         "rizeni_conovy_udaj": ""
-    #     }
-    #     str_info = ""
-    #     ret_data["cislo_jednotky"] = jednotky
-    #     ret_data["typ_jednotky"] = browser1.xpath('//*[@id="content"]/table[1]/tbody/tr[2]/td[2]').text
-    #     ret_data["cislo_lv_jednotka"] = browser1.xpath(
-    #         '//*[@id="content"]/table[1]/tbody/tr[6]/td[2]/a').text
-    #     ret_data["zpusob_vyuziti_jednotky"] = browser1.xpath(
-    #         '//*[@id="content"]/table[1]/tbody/tr[3]/td[2]').text
-    #     ret_data["podil_spol_casti"] = browser1.xpath(
-    #         '//*[@id="content"]/table[1]/tbody/tr[7]/td[2]').text
-    #     str_info = "{}{}{}{}{}".format(ret_data["cislo_jednotky"], ret_data["typ_jednotky"],
-    #                                    ret_data["cislo_lv_jednotka"],
-    #                                    ret_data["zpusob_vyuziti_jednotky"], ret_data["podil_spol_casti"])
-    #
-    #     pravo_list_table = browser1.xpath('//*[@id="content"]/table[2]/tbody')
-    #     ret_data["vlastnicke_pravo"] = []
-    #
-    #     for tr_ in pravo_list_table.find_elements(By.TAG_NAME, 'tr')[1:]:
-    #         ret_data["vlastnicke_pravo"].append(tr_.xpath('.//td[1]').text)
-    #         # ret_data["podil"].append(tr_.xpath('.//td[2]').text)
-    #
-    #     ret_data["omezeni_vlastnick_prava"] = []
-    #     for tr_ in pravo_list_table.find_elements(By.TAG_NAME, 'tr')[1:]:
-    #         ret_data["omezeni_vlastnick_prava"].append(tr_.xpath('.//td').text)
-    #
-    #     # ret_data["jine_zapsy"] = browser1.xpath('//*[@id="content"]/div[3]').text
-    #
-    #     information_btn = browser1.xpath('//*[@id="ui-accordion-1-header-0"]')
-    #     information_btn.click()
-    #
-    #     try:
-    #         # wait for search button visible - that means web-loading finished
-    #         WebDriverWait(browser1, 10).until(EC.presence_of_element_located((By.ID, 'ui-accordion-1-panel-0')))
-    #     except TimeoutException:
-    #         print("page3 - information button click err")
-    #         return
-    #
-    #     ret_data["rizeni_conovy_udaj"] = browser1.xpath('//*[@id="ui-accordion-1-panel-0"]').text
-    #     checksum = hashlib.md5(str_info.encode('utf-8')).hexdigest()
-    #
-    #     ret_data["cheecksum"] = checksum
-    #     self.update_jednotky(ret_data, checksum)
-    #     return ret_data
+    def type2_page(self, browser, kod_budovy):
+        ret_data = {"cislo_lv": browser.xpath('//*[@id="content"]//table[1]//tr[5]//td[2]//a/text()').extract_first(),
+                    "vymera": "", "druh_pozemku": "", "budova_s_cislem": "", "adresni_mista": [],
+                    "omezeni_vlastnickeho_prava": [], "jine_zapisy": [], "rizeni_cenovy_udaj": "",
+                    "zpusob_vyuziti": browser.xpath(
+                        '//*[@id="content"]//table[1]//tr[8]//td[2]/text()').extract_first(),
+                    "parcelni_cislo": browser.xpath(
+                        '//*[@id="content"]//table[1]//tr[6]//td[2]//a/text()').extract_first(), "cislo_jednotky": [],
+                    "vlastnicke_pravo": [], "podil": [], "invalid_record": ""}
+
+        zRuian = browser.xpath('//table[@summary=\"Informace z RÚIAN\"]//tr')  # list
+        for td_ in zRuian:
+            if td_.xpath('.//td[1]/text()').extract_first() == 'Adresní místa:':
+                ret_data["adresni_mista"] = td_.xpath('.//td[2]/a/text()').extract()
+
+        jednots = browser.xpath('//*[@id="content"]//table[2]//tr[1]//td[1]/a')
+        for jednot in jednots:
+            ret_data["cislo_jednotky"].append(jednot.xpath("text()").extract_first())
+
+        str_jednot = ",".join(ret_data["cislo_jednotky"])
+
+
+        for jednot in jednots:
+            # cislo_jednotky = jednot.xpath("text()").extract_first()
+            # ret_data["cislo_jednotky"].append(cislo_jednotky)
+            # url = jednot.css('attr(href)').extract_first()
+            url = "{}{}".format(self.init_url, jednot.xpath('@href').extract_first())
+            # self.parse_type3(url=url, meta={"str_jednot": str_jednot, "kod_budovy": kod_budovy})
+            # scrapy.Request(url, method="POST", callback=self.parse_type3, meta={"str_jednot": str_jednot, "kod_budovy": kod_budovy})
+            # self.type3_page(browser, cislo_jednotky, kod_budovy)
+        return ret_data
+
+    def parse_type3(self, url, meta):
+
+        # response
+        page = requests.post(url)
+        htmlparser = etree.HTMLParser()
+        response = etree.parse(page, htmlparser)
+
+        kod_budovy1 = meta["kod_budovy"]
+
+        ret_data = {
+            "kod_budovy": kod_budovy1,
+            "cislo_jednotky": "",
+            "typ_jednotky": "",
+            "cislo_lv_jednotka": "",
+            "zpusob_vyuziti_jednotky": "",
+            "vlastnicke_pravo": [],
+            "podil_spol_casti": [],
+            "checksum": "",
+            "rizeni_conovy_udaj": ""
+        }
+        str_info = ""
+        ret_data["cislo_jednotky"] = meta["str_jednot"]
+        ret_data["typ_jednotky"] = response.xpath('//*[@id="content"]//table[1]//table//tr[2]//td[2]/text()')
+        ret_data["typ_jednotky"] = response.xpath('//*[@id="content"]//table[1]//tr[2]//td[2]/text()')
+        ret_data["cislo_lv_jednotka"] = response.xpath('//*[@id="content"]//table[1]//tr[6]//td[2]//a/text()').extract_first()
+        ret_data["zpusob_vyuziti_jednotky"] = response.xpath('//*[@id="content"]//table[1]//tr[3]//td[2]/text()').extract_first()
+        ret_data["podil_spol_casti"] = response.xpath('//*[@id="content"]//table[1]//tr[7]//td[2]/text()').extract_first()
+        str_info = "{}{}{}{}{}".format(ret_data["cislo_jednotky"], ret_data["typ_jednotky"],
+                                       ret_data["cislo_lv_jednotka"],
+                                       ret_data["zpusob_vyuziti_jednotky"], ret_data["podil_spol_casti"])
+
+        ret_data["vlastnicke_pravo"] = []
+        pravo_list = response.xpath('//table[@summary=\"Vlastníci, jiní oprávnění\"]//tr')  # list
+        for tr_ in pravo_list[1:]:
+            ret_data["vlastnicke_pravo"].append(tr_.xpath('.//td[1]/text()').extract_first())
+            # ret_data["podil"].append(tr_.xpath('.//td[2]').text)
+
+        ret_data["omezeni_vlastnick_prava"] = []
+        pravo_omezeni_list = response.xpath('//table[@summary=\"Omezení vlastnického práva\"]//tr')  # list
+        for tr_ in pravo_omezeni_list[1:]:
+            ret_data["omezeni_vlastnick_prava"].append(tr_.xpath('.//td[1]/text()').extract_first())
+
+        # ret_data["jine_zapsy"] = browser1.xpath('//*[@id="content"]/div[3]').text
+        rizeni_conovy = response.xpath('//table[@summary=\"Řízení, v rámci kterých byl k nemovitosti zapsán cenový údaj\"]//tr')  # list
+        rizeni_conovy_udaj = []
+        for tr_ in rizeni_conovy:
+            rizeni_conovy_udaj.append(tr_.xpath('.//td[1]//a/text()').extract_first())
+
+        ret_data["rizeni_conovy_udaj"] = ",".join(rizeni_conovy_udaj)
+
+        checksum = hashlib.md5(str_info.encode('utf-8')).hexdigest()
+        ret_data["checksum"] = checksum
+        self.update_jednotky(ret_data, checksum)
+
+        return ret_data
 
     def process_emptyField(self, intvalue):
         str_res = ""
@@ -395,31 +361,16 @@ class NinjacrawlSpider(scrapy.Spider):
             cur.close()
 
     def type1_page(self, browser):
-        ret_data = {
-            "cislo_lv": "",
-            "vymera": "",
-            "druh_pozemku": "",
-            "budova_s_cislem": "",
-            "adresni_mista": [],
-            "omezeni_vlastnickeho_prava": [],
-            "jine_zapisy": [],
-            "rizeni_cenovy_udaj": "",
-            "zpusob_vyuziti": "",
-            "parcelni_cislo": "",
-            "cislo_jednotky": [],
-            "vlastnicke_pravo": [],  # this is list
-            "podil": [],
-            "invalid_record": "",
-        }
+        ret_data = {"cislo_lv": browser.xpath('//*[@id="content"]//table[1]//tr[4]//td[2]//a/text()').extract_first(),
+                    "vymera": browser.xpath('//*[@id="content"]//table[1]//tr[5]//td[2]/text()').extract_first(),
+                    "druh_pozemku": browser.xpath('//*[@id="content"]//table[1]//tr[9]//td[2]/text()').extract_first(),
+                    "budova_s_cislem": browser.xpath(
+                        '//*[@id="content"]//table[2]//tr[1]//td[2]/text()').extract_first(), "adresni_mista": [],
+                    "omezeni_vlastnickeho_prava": [], "jine_zapisy": [], "rizeni_cenovy_udaj": "", "zpusob_vyuziti": "",
+                    "parcelni_cislo": browser.xpath(
+                        '//*[@id="content"]//table[1]//tr[1]//td[2]//a/text()').extract_first(), "cislo_jednotky": [],
+                    "vlastnicke_pravo": [], "podil": [], "invalid_record": ""}
 
-        ret_data["parcelni_cislo"] = browser.xpath(
-            '//*[@id="content"]//table[1]//tr[1]//td[2]//a/text()').extract_first()
-        ret_data["cislo_lv"] = browser.xpath('//*[@id="content"]//table[1]//tr[4]//td[2]//a/text()').extract_first()
-        ret_data["vymera"] = browser.xpath('//*[@id="content"]//table[1]//tr[5]//td[2]/text()').extract_first()
-        ret_data["druh_pozemku"] = browser.xpath('//*[@id="content"]//table[1]//tr[9]//td[2]/text()').extract_first()
-        ret_data["budova_s_cislem"] = browser.xpath('//*[@id="content"]//table[2]//tr[1]//td[2]/text()').extract_first()
-
-        ret_data["adresni_mista"] = []
         for ad_mista in browser.xpath('//*[@id="content"]//table[2]//tr[5]//td[2]/a'):
             ret_data["adresni_mista"].append(ad_mista.xpath('text()').extract_first())
 
@@ -453,7 +404,6 @@ class NinjacrawlSpider(scrapy.Spider):
         return ret_data
 
     def process_postgresql(self, data_info, kod_budovy):
-
         check_sum = self.get_hasthstring(data_info=data_info)
         now = datetime.now()
         date_time = now.strftime("%m/%d/%Y")
@@ -499,7 +449,6 @@ class NinjacrawlSpider(scrapy.Spider):
         cur.execute(sql_update)
         ncount = cur.rowcount
         # cur.close()
-
         if ncount == 0:
             # cur = self.connection.cursor()
             cur.execute(sql_update_invalid)
