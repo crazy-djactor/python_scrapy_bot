@@ -11,3 +11,6 @@ This project includes some several python bot & scrapping projects.
    
 3) ubisoft by Selenium
 * https://github.com/crazy-djactor/python_scrapy_bot/tree/master/ubisoft_scrap/ninja_scrap
+
+4) telegram-bot
+* https://github.com/crazy-djactor/python_scrapy_bot/tree/master/ubisoft_scrap/telegram-bot
