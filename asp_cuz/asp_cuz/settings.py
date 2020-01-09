@@ -61,14 +61,17 @@ ROBOTSTXT_OBEY = False
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-PROXY_POOL_ENABLED = True
+PROXY_POOL_ENABLED = False
+COOKIES_ENABLED = True
+PROXY_ADDR = 'http://api.scraperapi.com/?api_key='
+API_KEY = '706d6b1402b62de7cb68182b51ab6d9b'
+NUM_PROCS = 3
 
 DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
     'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
-    'scrapy_proxy_pool.middlewares.ProxyPoolMiddleware': 610,
-    'scrapy_proxy_pool.middlewares.BanDetectionMiddleware': 620,
 }
+
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html

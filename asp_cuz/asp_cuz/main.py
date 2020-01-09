@@ -10,7 +10,7 @@ def main():
     connection = None
     # try:
     connection = psycopg2.connect(user="postgres",
-                                  password="19900413",
+                                  password="123456789",
                                   host="127.0.0.1",
                                   port="5432",
                                   database="postgres")
@@ -47,7 +47,8 @@ def main():
     }
 
     data_filter = [[]]
-    num_procs = 1
+    setting = get_project_settings()
+    num_procs = int(setting.attributes['NUM_PROCS'].value)
     i = 0
     for i in range(num_procs):
         data_filter.append([])
@@ -58,12 +59,11 @@ def main():
         data_filter[i % num_procs].append(row_data)
         i = i + 1
 
-    setting = get_project_settings()
     process = CrawlerProcess(setting)
 
     # process.crawl(NinjacrawlSpider, param={"row_data": data_filter[0], "idx": 0, "con": connection})
     for x in range(num_procs):
-        process.crawl(NinjacrawlSpider, param={"row_data": data_filter[x], "idx": x, "con": connection})
+        process.crawl(NinjacrawlSpider, param={"row_data": data_filter[x], "idx": x, "con": connection, "api_key": setting.attributes['API_KEY'].value})
 
     process.start()
 

@@ -10,15 +10,15 @@ class NinjacrawlSpider(scrapy.Spider):
     name = 'ninjacrawl'
     # allowed_domains = ['https://nahlizenidokn.cuzk.cz/']
     start_urls = ['https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba']
-    proxy_url = 'http://api.scraperapi.com/?api_key=706d6b1402b62de7cb68182b51ab6d9b&url='
 
     def __init__(self, param):
         super(NinjacrawlSpider, self).__init__()
-        # self.url = self.proxy_url + 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba' + '&render=true'
-        # self.init_url = self.proxy_url + 'https://nahlizenidokn.cuzk.cz/'
-        self.url = 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
-        self.init_url = 'https://nahlizenidokn.cuzk.cz/'
-
+        self.proxy_url = 'http://api.scraperapi.com/?api_key={}&url='.format(param['api_key'])
+        self.url = self.proxy_url + 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba' + '&keep_headers=true'
+        self.init_url = self.proxy_url + 'https://nahlizenidokn.cuzk.cz/'
+        # self.url = 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
+        # self.init_url = 'https://nahlizenidokn.cuzk.cz/'
+        self.NET_SessionId = ''
         # self.spider_row_data =[
         #     {"kod_budovy": "19374704",
         #    "typ_stavebniho_objektu": "budova s číslem popisným",
@@ -35,8 +35,8 @@ class NinjacrawlSpider(scrapy.Spider):
         yield scrapy.Request(self.url, method="GET", callback=self.parse)
         # yield scrapy.Request(url, method="POST", callback=self.parse)
 
-    def parse_type_back(self, response):
-        row_data = response.meta
+    def parse_type_back(self, response, row_data):
+
         h2 = response.xpath('//*[@id="content"]/h2[1]/text()').extract_first()
         if h2 == 'Vymezené jednotky':
             ret_data = self.type2_page(response, row_data["kod_budovy"])
@@ -46,8 +46,8 @@ class NinjacrawlSpider(scrapy.Spider):
             self.process_postgresql(ret_data, row_data["kod_budovy"])
         return
 
-    def parse_obec_click(self, response):  # input 4053
-        row_data = response.meta
+    def parse_obec_click(self, response, row_data):  # input 4053
+
         ctl00_scriptManager_TSM = self.checkvalid(
             response.css('input#ctl00_scriptManager_TSM::attr(value)').extract_first())
         # lastfocus = self.checkvalid(response.css('input#__LASTFOCUS::attr(value)').extract_first())
@@ -86,11 +86,46 @@ class NinjacrawlSpider(scrapy.Spider):
         ctl00_bodyPlaceHolder_idAccordionIndex = self.checkvalid(
             response.css('input#ctl00_bodyPlaceHolder_idAccordionIndex::attr(value)').extract_first())
 
+        headers = {
+            'Connection': 'keep-alive',
+            'Cache-Control': 'max-age=0',
+            'Upgrade-Insecure-Requests': '1',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.117 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-User': '?1',
+            'Sec-Fetch-Site': 'same-origin',
+            # 'Host': 'nahlizenidokn.cuzk.cz',
+            # 'Referer': 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
+        }
+
         for ctl00_bodyPlaceHolder_txtBudova in row_data["cislo_domovni"]:
             # ctl00_bodyPlaceHolder_txtBudova = '4053'
             # ctl00_bodyPlaceHolder_txtBudova = self.checkvalid(
             #     response.css('input#ctl00_bodyPlaceHolder_txtBudova::attr(value)').extract_first())
-            yield response.follow(self.url, self.parse_type_back)
+            formdata = {
+                'ctl00_scriptManager_TSM': ctl00_scriptManager_TSM,
+                '__EVENTTARGET': eventtarget,
+                '__EVENTARGUMENT': eventargument,
+                '__VIEWSTATE': viewstate,
+                '__VIEWSTATEGENERATOR': viewstategenerator,
+                '__EVENTVALIDATION': eventvalidation,
+                'ctl00$bodyPlaceHolder$listCastObce': ctl00_bodyPlaceHolder_listCastObce,  # listcast
+                'ctl00$bodyPlaceHolder$listTypBudovy': ctl00_bodyPlaceHolder_listTypBudovy,
+                'ctl00$bodyPlaceHolder$txtBudova': str(ctl00_bodyPlaceHolder_txtBudova),  # 4053
+                'ctl00$bodyPlaceHolder$txtUlice': ctl00_bodyPlaceHolder_txtUlice,
+                'ctl00$bodyPlaceHolder$txtCisloDomovni': ctl00_bodyPlaceHolder_txtCisloDomovni,
+                'ctl00$bodyPlaceHolder$txtCisloOr': ctl00_bodyPlaceHolder_txtCisloOr,
+                'ctl00$bodyPlaceHolder$btnVyhledat': ctl00_bodyPlaceHolder_btnVyhledat,
+                'ctl00$bodyPlaceHolder$idAccordionIndex': ctl00_bodyPlaceHolder_idAccordionIndex
+            }
+            # cookies = {
+            #     'ASP.NET_SessionId': self.NET_SessionId,
+            # }
+            # response = requests.post(self.url, headers=headers, data=formdata, cookies=cookies)
+            # response_text = response.text
             yield scrapy.FormRequest(
                 self.url, method="POST",
                 formdata={
@@ -111,7 +146,7 @@ class NinjacrawlSpider(scrapy.Spider):
                 },
                 callback=self.parse_type_back,
                 dont_filter=True,
-                meta=row_data
+                cb_kwargs=dict(row_data=row_data)
             )
             break
 
@@ -121,8 +156,13 @@ class NinjacrawlSpider(scrapy.Spider):
         return param
 
     def parse(self, response):  # input 582786
-        # row_data = response.meta
+
         # row_data = self.spider_row_data
+        # self.NET_SessionId = response.cookies['ASP.NET_SessionId']
+        # st = str(response.headers.getlist('Set-Cookie')[0])
+        # st1 = st.split(";")
+        # st2 = st1[0].split("=")
+        # self.NET_SessionId = st2[1]
         for row_data in self.spider_row_data:
             txtobec = '582786'
             if not self.first_searchbutton(response, kod_obce=txtobec):
@@ -156,7 +196,7 @@ class NinjacrawlSpider(scrapy.Spider):
                 },
                 callback=self.parse_obec_click,
                 dont_filter=True,
-                meta=row_data
+                cb_kwargs=dict(row_data=row_data)
             )
 
     def first_searchbutton(self, response, kod_obce):
@@ -196,23 +236,20 @@ class NinjacrawlSpider(scrapy.Spider):
 
         # str_jednot = ",".join(ret_data["cislo_jednotky"])
 
-
         for jednot in jednots:
             # cislo_jednotky = jednot.xpath("text()").extract_first()
             # ret_data["cislo_jednotky"].append(cislo_jednotky)
             # url = jednot.css('attr(href)').extract_first()
-            url = "{}{}".format(self.init_url, jednot.xpath('@href').extract_first())
-            self.parse_type3(url=url, meta={"str_jednot": ret_data["cislo_jednotky"], "kod_budovy": kod_budovy})
-
+            url = "{}{}&keep_headers=true".format(self.init_url, jednot.xpath('@href').extract_first())
+            self.parse_type3(url=url, data={"str_jednot": ret_data["cislo_jednotky"], "kod_budovy": kod_budovy})
         return ret_data
 
-    def parse_type3(self, url, meta):
-
+    def parse_type3(self, url, data):
         # response
         page = requests.post(url)
         # response = html.fromstring(page.content)
         response = html.fromstring(page.text)
-        kod_budovy1 = meta["kod_budovy"]
+        kod_budovy1 = data["kod_budovy"]
 
         ret_data = {
             "kod_budovy": kod_budovy1,
@@ -226,7 +263,7 @@ class NinjacrawlSpider(scrapy.Spider):
             "rizeni_conovy_udaj": ""
         }
         str_info = ""
-        ret_data["cislo_jednotky"] = meta["str_jednot"]
+        ret_data["cislo_jednotky"] = data["str_jednot"]
         liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[2]//td[2]/text()')
         if len(liststr) > 0:
             ret_data["typ_jednotky"] = str(liststr[0])
