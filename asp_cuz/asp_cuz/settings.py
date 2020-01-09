@@ -11,9 +11,17 @@
 
 BOT_NAME = 'asp_cuz'
 
-SPIDER_MODULES = ['asp_cuz.spiders']
-NEWSPIDER_MODULE = 'asp_cuz.spiders'
+SPIDER_MODULES = ['asp_cuz.asp_cuz.spiders']
+NEWSPIDER_MODULE = 'asp_cuz.asp_cuz.spiders'
 
+
+# Activate the middleware
+# SCRAPERAPI_ENABLED = True
+# Address of the API service
+# SCRAPERAPI_URL='api.proxycrawl.com'
+# SCRAPERAPI_URL = 'api.scraperapi.com'
+#The API key
+# SCRAPERAPI_KEY ='706d6b1402b62de7cb68182b51ab6d9b'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'asp_cuz (+http://www.yourdomain.com)'
@@ -52,9 +60,11 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'asp_cuz.middlewares.AspCuzDownloaderMiddleware': 543,
-#}
+
+DOWNLOADER_MIDDLEWARES = {
+    'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,
+    'scrapy_user_agents.middlewares.RandomUserAgentMiddleware': 400,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html

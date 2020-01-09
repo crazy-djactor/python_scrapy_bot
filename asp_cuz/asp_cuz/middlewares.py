@@ -6,6 +6,7 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from w3lib.http import basic_auth_header
 
 
 class AspCuzSpiderMiddleware(object):
@@ -54,7 +55,6 @@ class AspCuzSpiderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
-
 
 class AspCuzDownloaderMiddleware(object):
     # Not all methods need to be defined. If a method is not defined,

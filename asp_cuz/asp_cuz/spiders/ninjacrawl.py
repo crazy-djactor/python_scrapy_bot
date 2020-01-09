@@ -3,35 +3,36 @@ import hashlib
 from datetime import datetime
 import scrapy
 from lxml import html
-from lxml import etree
-
 import requests
-from queue import Queue
-
+import psycopg2
 
 class NinjacrawlSpider(scrapy.Spider):
     name = 'ninjacrawl'
     # allowed_domains = ['https://nahlizenidokn.cuzk.cz/']
     start_urls = ['https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba']
-    init_url = 'https://nahlizenidokn.cuzk.cz/'
+    proxy_url = 'http://api.scraperapi.com/?api_key=706d6b1402b62de7cb68182b51ab6d9b&url='
 
     def __init__(self, param):
         super(NinjacrawlSpider, self).__init__()
-        self.url = 'http://api.scraperapi.com/?api_key=706d6b1402b62de7cb68182b51ab6d9b&url=' + 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
-        self.spider_row_data =[
-            {"kod_budovy": "19374712",
-           "typ_stavebniho_objektu": "budova s číslem popisným",
-           "cislo_domovni": ["4056", "4058"],
-           "nazev_casti_obce": "Židenice",
-           "kod_obce": "582786"}]
-        # self.spider_row_data = param["row_data"]
+        # self.url = self.proxy_url + 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba' + '&render=true'
+        # self.init_url = self.proxy_url + 'https://nahlizenidokn.cuzk.cz/'
+        self.url = 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
+        self.init_url = 'https://nahlizenidokn.cuzk.cz/'
+
+        # self.spider_row_data =[
+        #     {"kod_budovy": "19374704",
+        #    "typ_stavebniho_objektu": "budova s číslem popisným",
+        #    "cislo_domovni": ["4054"],
+        #    "nazev_casti_obce": "Židenice",
+        #    "kod_obce": "582786"}]
+        self.spider_row_data = param["row_data"]
         self.idx = param["idx"]
+        self.connection = param["con"]
 
     def start_requests(self):
         # url = 'http://api.scraperapi.com/?api_key=706d6b1402b62de7cb68182b51ab6d9b&url=' + self.url
-        self.url = 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
-        for row_data in self.spider_row_data:
-            yield scrapy.Request(self.url, method="POST", callback=self.parse, meta=row_data)
+        # for row_data in self.spider_row_data:
+        yield scrapy.Request(self.url, method="GET", callback=self.parse)
         # yield scrapy.Request(url, method="POST", callback=self.parse)
 
     def parse_type_back(self, response):
@@ -42,7 +43,7 @@ class NinjacrawlSpider(scrapy.Spider):
             self.process_postgresql(ret_data, row_data["kod_budovy"])
         else:
             ret_data = self.type1_page(response)
-            # self.process_postgresql(ret_data, row_data["kod_budovy"])
+            self.process_postgresql(ret_data, row_data["kod_budovy"])
         return
 
     def parse_obec_click(self, response):  # input 4053
@@ -119,41 +120,43 @@ class NinjacrawlSpider(scrapy.Spider):
         return param
 
     def parse(self, response):  # input 582786
-        row_data = response.meta
-        txtobec = '582786'
-        if not self.first_searchbutton(response, kod_obce=txtobec):
-            return
+        # row_data = response.meta
+        # row_data = self.spider_row_data
+        for row_data in self.spider_row_data:
+            txtobec = '582786'
+            if not self.first_searchbutton(response, kod_obce=txtobec):
+                return
 
-        ctl00_scriptManager_TSM = self.checkvalid(
-            response.css('input#ctl00_scriptManager_TSM::attr(value)').extract_first())
-        lastfocus = self.checkvalid(response.css('input#__LASTFOCUS::attr(value)').extract_first())
-        eventtarget = self.checkvalid(response.css('input#__EVENTTARGET::attr(value)').extract_first())
-        eventargument = self.checkvalid(response.css('input#__EVENTARGUMENT::attr(value)').extract_first())
-        viewstate = self.checkvalid(response.css('input#__VIEWSTATE::attr(value)').extract_first())
-        viewstategenerator = self.checkvalid(response.css('input#__VIEWSTATEGENERATOR::attr(value)').extract_first())
-        eventvalidation = self.checkvalid(response.css('input#__EVENTVALIDATION::attr(value)').extract_first())
-        btnobec = self.checkvalid(
-            response.css('input#ctl00_bodyPlaceHolder_vyberObec_btnObec::attr(value)').extract_first())
-        idAccordionIndex = self.checkvalid(
-            response.css('input#ctl00_bodyPlaceHolder_idAccordionIndex::attr(value)').extract_first())
-        yield scrapy.FormRequest(
-            self.url, method="POST",
-            formdata={
-                'ctl00_scriptManager_TSM': ctl00_scriptManager_TSM,
-                '__LASTFOCUS': lastfocus,
-                '__EVENTTARGET': eventtarget,
-                '__EVENTARGUMENT': eventargument,
-                '__VIEWSTATE': viewstate,
-                '__VIEWSTATEGENERATOR': viewstategenerator,
-                '__EVENTVALIDATION': eventvalidation,
-                'ctl00$bodyPlaceHolder$vyberObec$txtObec': txtobec,
-                'ctl00$bodyPlaceHolder$vyberObec$btnObec': btnobec,
-                'ctl00$bodyPlaceHolder$idAccordionIndex': idAccordionIndex
-            },
-            callback=self.parse_obec_click,
-            dont_filter=True,
-            meta=row_data
-        )
+            ctl00_scriptManager_TSM = self.checkvalid(
+                response.css('input#ctl00_scriptManager_TSM::attr(value)').extract_first())
+            lastfocus = self.checkvalid(response.css('input#__LASTFOCUS::attr(value)').extract_first())
+            eventtarget = self.checkvalid(response.css('input#__EVENTTARGET::attr(value)').extract_first())
+            eventargument = self.checkvalid(response.css('input#__EVENTARGUMENT::attr(value)').extract_first())
+            viewstate = self.checkvalid(response.css('input#__VIEWSTATE::attr(value)').extract_first())
+            viewstategenerator = self.checkvalid(response.css('input#__VIEWSTATEGENERATOR::attr(value)').extract_first())
+            eventvalidation = self.checkvalid(response.css('input#__EVENTVALIDATION::attr(value)').extract_first())
+            btnobec = self.checkvalid(
+                response.css('input#ctl00_bodyPlaceHolder_vyberObec_btnObec::attr(value)').extract_first())
+            idAccordionIndex = self.checkvalid(
+                response.css('input#ctl00_bodyPlaceHolder_idAccordionIndex::attr(value)').extract_first())
+            yield scrapy.FormRequest(
+                self.url, method="POST",
+                formdata={
+                    'ctl00_scriptManager_TSM': ctl00_scriptManager_TSM,
+                    '__LASTFOCUS': lastfocus,
+                    '__EVENTTARGET': eventtarget,
+                    '__EVENTARGUMENT': eventargument,
+                    '__VIEWSTATE': viewstate,
+                    '__VIEWSTATEGENERATOR': viewstategenerator,
+                    '__EVENTVALIDATION': eventvalidation,
+                    'ctl00$bodyPlaceHolder$vyberObec$txtObec': txtobec,
+                    'ctl00$bodyPlaceHolder$vyberObec$btnObec': btnobec,
+                    'ctl00$bodyPlaceHolder$idAccordionIndex': idAccordionIndex
+                },
+                callback=self.parse_obec_click,
+                dont_filter=True,
+                meta=row_data
+            )
 
     def first_searchbutton(self, response, kod_obce):
         btn = response.xpath('//*[@id="ctl00_bodyPlaceHolder_vyberObec_lblObec"]')
@@ -190,26 +193,24 @@ class NinjacrawlSpider(scrapy.Spider):
         for jednot in jednots:
             ret_data["cislo_jednotky"].append(jednot.xpath("text()").extract_first())
 
-        str_jednot = ",".join(ret_data["cislo_jednotky"])
+        # str_jednot = ",".join(ret_data["cislo_jednotky"])
 
 
         for jednot in jednots:
             # cislo_jednotky = jednot.xpath("text()").extract_first()
             # ret_data["cislo_jednotky"].append(cislo_jednotky)
             # url = jednot.css('attr(href)').extract_first()
-            url = "{}{}".format(self.init_url, jednot.xpath('@href').extract_first())
-            # self.parse_type3(url=url, meta={"str_jednot": str_jednot, "kod_budovy": kod_budovy})
-            # scrapy.Request(url, method="POST", callback=self.parse_type3, meta={"str_jednot": str_jednot, "kod_budovy": kod_budovy})
-            # self.type3_page(browser, cislo_jednotky, kod_budovy)
+            url = "{}{}&render=true".format(self.init_url, jednot.xpath('@href').extract_first())
+            self.parse_type3(url=url, meta={"str_jednot": ret_data["cislo_jednotky"], "kod_budovy": kod_budovy})
+
         return ret_data
 
     def parse_type3(self, url, meta):
 
         # response
         page = requests.post(url)
-        htmlparser = etree.HTMLParser()
-        response = etree.parse(page, htmlparser)
-
+        # response = html.fromstring(page.content)
+        response = html.fromstring(page.text)
         kod_budovy1 = meta["kod_budovy"]
 
         ret_data = {
@@ -225,34 +226,52 @@ class NinjacrawlSpider(scrapy.Spider):
         }
         str_info = ""
         ret_data["cislo_jednotky"] = meta["str_jednot"]
-        ret_data["typ_jednotky"] = response.xpath('//*[@id="content"]//table[1]//table//tr[2]//td[2]/text()')
-        ret_data["typ_jednotky"] = response.xpath('//*[@id="content"]//table[1]//tr[2]//td[2]/text()')
-        ret_data["cislo_lv_jednotka"] = response.xpath('//*[@id="content"]//table[1]//tr[6]//td[2]//a/text()').extract_first()
-        ret_data["zpusob_vyuziti_jednotky"] = response.xpath('//*[@id="content"]//table[1]//tr[3]//td[2]/text()').extract_first()
-        ret_data["podil_spol_casti"] = response.xpath('//*[@id="content"]//table[1]//tr[7]//td[2]/text()').extract_first()
+        liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[2]//td[2]/text()')
+        if len(liststr) > 0:
+            ret_data["typ_jednotky"] = str(liststr[0])
+        liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[6]//td[2]//a/text()')
+        if len(liststr) > 0:
+            ret_data["cislo_lv_jednotka"] = str(liststr[0])
+        liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[3]//td[2]/text()')
+        if len(liststr) > 0:
+            ret_data["zpusob_vyuziti_jednotky"] = str(liststr[0])
+        liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[7]//td[2]/text()')
+        if len(liststr) > 0:
+            ret_data["podil_spol_casti"] = str(liststr[0])
+
         str_info = "{}{}{}{}{}".format(ret_data["cislo_jednotky"], ret_data["typ_jednotky"],
                                        ret_data["cislo_lv_jednotka"],
                                        ret_data["zpusob_vyuziti_jednotky"], ret_data["podil_spol_casti"])
 
         ret_data["vlastnicke_pravo"] = []
-        pravo_list = response.xpath('//table[@summary=\"Vlastníci, jiní oprávnění\"]//tr')  # list
+
+        pravo_list = response.xpath('//table[@summary="Vlastníci, jiní oprávnění"]//tbody//tr')
         for tr_ in pravo_list[1:]:
-            ret_data["vlastnicke_pravo"].append(tr_.xpath('.//td[1]/text()').extract_first())
-            # ret_data["podil"].append(tr_.xpath('.//td[2]').text)
+            liststr = tr_.xpath('.//td[1]/text()')
+            if len(liststr) == 0:
+                continue
+            ret_data["vlastnicke_pravo"].append(str(liststr[0]))
 
         ret_data["omezeni_vlastnick_prava"] = []
-        pravo_omezeni_list = response.xpath('//table[@summary=\"Omezení vlastnického práva\"]//tr')  # list
+        pravo_omezeni_list = response.xpath('//table[@class="zarovnat stinuj  "]')
+
+        pravo_omezeni_list = response.xpath('//table[@summary="Omezení vlastnického práva"]//tbody//tr')  # list
         for tr_ in pravo_omezeni_list[1:]:
-            ret_data["omezeni_vlastnick_prava"].append(tr_.xpath('.//td[1]/text()').extract_first())
+            liststr = tr_.xpath('.//td[1]/text()')
+            if len(liststr) == 0:
+                continue
+            ret_data["omezeni_vlastnick_prava"].append(str(liststr[0]))
 
         # ret_data["jine_zapsy"] = browser1.xpath('//*[@id="content"]/div[3]').text
-        rizeni_conovy = response.xpath('//table[@summary=\"Řízení, v rámci kterých byl k nemovitosti zapsán cenový údaj\"]//tr')  # list
+        rizeni_conovy = response.xpath('//table[@summary="Řízení, v rámci kterých byl k nemovitosti zapsán cenový údaj"]//tbody//tr')  # list
         rizeni_conovy_udaj = []
         for tr_ in rizeni_conovy:
-            rizeni_conovy_udaj.append(tr_.xpath('.//td[1]//a/text()').extract_first())
+            liststr = tr_.xpath('.//td[1]/a/text()')
+            if len(liststr) == 0:
+                continue
+            rizeni_conovy_udaj.append(str(liststr[0]))
 
         ret_data["rizeni_conovy_udaj"] = ",".join(rizeni_conovy_udaj)
-
         checksum = hashlib.md5(str_info.encode('utf-8')).hexdigest()
         ret_data["checksum"] = checksum
         self.update_jednotky(ret_data, checksum)
@@ -261,7 +280,7 @@ class NinjacrawlSpider(scrapy.Spider):
 
     def process_emptyField(self, intvalue):
         str_res = ""
-        if intvalue == '':
+        if (intvalue == '') or (intvalue is None):
             str_res = "NULL"
         else:
             str_res = intvalue
@@ -310,54 +329,63 @@ class NinjacrawlSpider(scrapy.Spider):
     def update_vlast(self, vlastinfo, podil, kod_budovy):
         sql = "UPDATE sproject.vlastnici " \
               "SET invalid_record='t' WHERE kod_budovy='{}'".format(kod_budovy)
-        cur = self.connection.cursor()
-        cur.execute(sql)
-        # cur.close
-        self.connection.commit()
-        now = datetime.now()
-        date_time = now.strftime("%m/%d/%Y")
-        for i in range(0, len(vlastinfo)):
-            # cur == self.connection.cursor()
-            sql = "INSERT INTO sproject.vlastnici(kod_budovy, vlastnicke_pravo, podil, date_change, invalid_record) " \
-                  "VALUES ('{}', '{}', '{}', '{}', 'f')".format(
-                kod_budovy, vlastinfo[i], podil[i], date_time)
+        try:
+            cur = self.connection.cursor()
             cur.execute(sql)
-        self.connection.commit()
-        cur.close()
+            # cur.close
+            self.connection.commit()
+            now = datetime.now()
+            date_time = now.strftime("%m/%d/%Y")
+            for i in range(0, len(vlastinfo)):
+                # cur == self.connection.cursor()
+                sql = "INSERT INTO sproject.vlastnici(kod_budovy, vlastnicke_pravo, podil, date_change, invalid_record) " \
+                      "VALUES ('{}', '{}', '{}', '{}', 'f')".format(
+                    kod_budovy, vlastinfo[i], podil[i], date_time)
+                cur.execute(sql)
+            self.connection.commit()
+            cur.close()
+        except (Exception, psycopg2.DatabaseError) as error:
+            print("update_vlast=error=={}=={}".format(kod_budovy, error))
 
     def update_jednotky(self, ret_data, checksum):
         now = datetime.now()
         date_time = now.strftime("%m/%d/%Y")
+        cur = None
+        try:
 
-        sql_update = "UPDATE sproject.jednotky SET date_change = '{}' WHERE invalid_record = 'f' AND kod_budovy='{}' " \
-                     "AND checksum = '{}'".format(date_time, ret_data["kod_budovy"], checksum)
-        cur = self.connection.cursor()
-        cur.execute(sql_update)
-        self.connection.commit()
-        ncount = cur.rowcount
-
-        if ncount == 0:
-            sql_update = "UPDATE sproject.jednotky SET invalid_record = 't' WHERE invalid_record = 'f' AND kod_budovy='{}' " \
-                         "AND checksum <> '{}'".format(ret_data["kod_budovy"], checksum)
+            sql_update = "UPDATE sproject.jednotky SET date_change = '{}' WHERE invalid_record = 'f' AND kod_budovy='{}' " \
+                         "AND checksum = '{}'".format(date_time, ret_data["kod_budovy"], checksum)
+            cur = self.connection.cursor()
             cur.execute(sql_update)
             self.connection.commit()
-            # cur.close()
-            sql = "INSERT INTO sproject.jednotky(kod_budovy, cislo_jednotky, typ_jednotky, " \
-                  "cislo_lv_jednotka, zpusob_vyuziti_jednotky, podil_spol_casti, date_change, invalid_record, checksum) " \
-                  "SELECT '{}', '{}', '{}', '{}', '{}', '{}', '{}', 'f', '{}' WHERE NOT EXISTS(" \
-                  "SELECT 1 FROM sproject.jednotky WHERE checksum = '{}')".format(
-                ret_data["kod_budovy"],
-                self.process_emptyArray(ret_data["cislo_jednotky"]),
-                ret_data["typ_jednotky"],
-                ret_data["cislo_lv_jednotka"],
-                ret_data["zpusob_vyuziti_jednotky"],
-                ret_data["podil_spol_casti"],
-                date_time,
-                ret_data["checksum"],
-                ret_data["checksum"]
-            )
-            cur.execute(sql)
-            self.connection.commit()
+            ncount = cur.rowcount
+
+            if ncount == 0:
+                sql_update = "UPDATE sproject.jednotky SET invalid_record = 't' WHERE invalid_record = 'f' AND kod_budovy='{}' " \
+                             "AND checksum <> '{}'".format(ret_data["kod_budovy"], checksum)
+                cur.execute(sql_update)
+                self.connection.commit()
+                # cur.close()
+                sql = "INSERT INTO sproject.jednotky(kod_budovy, cislo_jednotky, typ_jednotky, " \
+                      "cislo_lv_jednotka, zpusob_vyuziti_jednotky, podil_spol_casti, date_change, invalid_record, checksum) " \
+                      "SELECT '{}', {}, '{}', {}, '{}', '{}', '{}', 'f', '{}' WHERE NOT EXISTS(" \
+                      "SELECT 1 FROM sproject.jednotky WHERE checksum = '{}')".format(
+                    ret_data["kod_budovy"],
+                    self.process_emptyArray(ret_data["cislo_jednotky"]),
+                    ret_data["typ_jednotky"],
+                    self.process_emptyField(ret_data["cislo_lv_jednotka"]),
+                    ret_data["zpusob_vyuziti_jednotky"],
+                    ret_data["podil_spol_casti"],
+                    date_time,
+                    ret_data["checksum"],
+                    ret_data["checksum"]
+                )
+                cur.execute(sql)
+                self.connection.commit()
+                cur.close()
+        except (Exception, psycopg2.DatabaseError) as error:
+            print("update_jednotky=error=={}=={}".format(ret_data["kod_budovy"], error))
+        finally:
             cur.close()
 
     def type1_page(self, browser):
@@ -380,7 +408,10 @@ class NinjacrawlSpider(scrapy.Spider):
         vlast_prava_table = browser.xpath("//table[@summary=\"Vlastníci, jiní oprávnění\"]//tr")
         for td_ in vlast_prava_table[1:]:
             ret_data["vlastnicke_pravo"].append(td_.xpath('.//td[1]/text()').extract_first())
-            ret_data["podil"].append(td_.xpath('.//td[2]/text()').extract_first())
+            if td_.xpath('.//td[2]/text()').extract_first() is not None:
+                ret_data["podil"].append(td_.xpath('.//td[2]/text()').extract_first())
+            else:
+                ret_data["podil"].append("")
 
         ret_data["omezeni_vlastnickeho_prava"] = []
         omeze_rava_table = browser.xpath("//table[@summary=\"Omezení vlastnického práva\"]//tr")
@@ -424,10 +455,10 @@ class NinjacrawlSpider(scrapy.Spider):
                      "vymera, druh_pozemku, budova_s_cislem, adresni_mista, omezeni_vlastnickeho_prava, jine_zapisy, " \
                      "rizeni_cenovy_udaj, zpusob_vyuziti, cislo_jednotky, date_change, invalid_record, " \
                      "parcelni_cislo,check_sum, date_last, date_last_ok) " \
-                     "SELECT '{}', '{}', {}, '{}', '{}', {}, {}, {}, '{}', '{}', {}, '{}', '0', '{}', '{}','{}', " \
+                     "SELECT '{}', {}, {}, '{}', '{}', {}, {}, {}, '{}', '{}', {}, '{}', '0', '{}', '{}','{}', " \
                      "'{}' WHERE NOT EXISTS (SELECT 1 FROM sproject.budovy " \
                      "WHERE kod_budovy = '{}' AND " \
-                     "check_sum = '{}')".format(kod_budovy, data_info["cislo_lv"],
+                     "check_sum = '{}')".format(kod_budovy, self.process_emptyField(data_info["cislo_lv"]),
                                                 self.process_emptyField(data_info["vymera"]),
                                                 data_info["druh_pozemku"],
                                                 data_info["budova_s_cislem"],
@@ -444,20 +475,27 @@ class NinjacrawlSpider(scrapy.Spider):
                                                 date_time,
                                                 kod_budovy,
                                                 check_sum)
+        cur = None
+        try:
+            cur = self.connection.cursor()
+            cur.execute(sql_update)
+            ncount = cur.rowcount
+            self.connection.commit()
 
-        cur = self.connection.cursor()
-        cur.execute(sql_update)
-        ncount = cur.rowcount
-        # cur.close()
-        if ncount == 0:
-            # cur = self.connection.cursor()
-            cur.execute(sql_update_invalid)
-            self.connection.commit()
-            # cur.close()
-            # cur = self.connection.cursor()
-            cur.execute(sql_insert)
-            self.connection.commit()
+            if ncount == 0:
+                # cur = self.connection.cursor()
+                cur.execute(sql_update_invalid)
+                self.connection.commit()
+                # cur.close()
+                # cur = self.connection.cursor()
+                cur.execute(sql_insert)
+                self.connection.commit()
+                cur.close()
+                self.update_vlast(vlastinfo=data_info["vlastnicke_pravo"], podil=data_info["podil"],
+                                  kod_budovy=kod_budovy)
+        except (Exception, psycopg2.DatabaseError) as error:
+            print("process_postgresql=error=={}=={}".format(kod_budovy, error))
+        finally:
             cur.close()
-            self.update_vlast(vlastinfo=data_info["vlastnicke_pravo"], podil=data_info["podil"], kod_budovy=kod_budovy)
-            # self.update_jednotky(jednotky=data_info["cislo_jednotky"], kod_budovy=kod_budovy)
+        # cur.close()
         return

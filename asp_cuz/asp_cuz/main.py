@@ -2,6 +2,7 @@
 from scrapy.crawler import CrawlerProcess
 from asp_cuz.asp_cuz.spiders.ninjacrawl import NinjacrawlSpider
 import psycopg2
+from scrapy.utils.project import get_project_settings
 
 def main():
 
@@ -45,13 +46,6 @@ def main():
         # "kod_obce": [],
     }
 
-    row_data = {
-        "kod_budovy": "",
-        "typ_stavebniho_objektu": "",
-        "cislo_domovni": "",
-        "nazev_casti_obce": "",
-        "kod_obce": "",
-    }
     data_filter = [[]]
     num_procs = 1
     i = 0
@@ -59,20 +53,17 @@ def main():
         data_filter.append([])
 
     for row in records:
-        row_data["kod_budovy"] = row[0]
-        row_data["typ_stavebniho_objektu"] = row[1]
-        row_data["cislo_domovni"] = row[2]
-        row_data["nazev_casti_obce"] = row[3]
-        row_data["kod_obce"] = row[4]
+        row_data = {"kod_budovy": row[0], "typ_stavebniho_objektu": row[1], "cislo_domovni": row[2],
+                    "nazev_casti_obce": row[3], "kod_obce": row[4]}
         data_filter[i % num_procs].append(row_data)
         i = i + 1
 
-    process = CrawlerProcess()
-    # process.crawl(NinjacrawlSpider, row_data=data_filter[0], idx=0)
-    process.crawl(NinjacrawlSpider, param={"row_data": data_filter[0], "idx": 0})
-    # for x in range(num_procs):
-    #     process.crawl(NinjacrawlSpider, param={"row_data": data_filter[x], "idx": x})
+    setting = get_project_settings()
+    process = CrawlerProcess(setting)
 
+    # process.crawl(NinjacrawlSpider, param={"row_data": data_filter[0], "idx": 0, "con": connection})
+    for x in range(num_procs):
+        process.crawl(NinjacrawlSpider, param={"row_data": data_filter[x], "idx": x, "con": connection})
 
     process.start()
 
