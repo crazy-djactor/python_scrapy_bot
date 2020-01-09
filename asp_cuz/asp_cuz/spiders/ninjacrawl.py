@@ -90,6 +90,7 @@ class NinjacrawlSpider(scrapy.Spider):
             # ctl00_bodyPlaceHolder_txtBudova = '4053'
             # ctl00_bodyPlaceHolder_txtBudova = self.checkvalid(
             #     response.css('input#ctl00_bodyPlaceHolder_txtBudova::attr(value)').extract_first())
+            yield response.follow(self.url, self.parse_type_back)
             yield scrapy.FormRequest(
                 self.url, method="POST",
                 formdata={
@@ -200,7 +201,7 @@ class NinjacrawlSpider(scrapy.Spider):
             # cislo_jednotky = jednot.xpath("text()").extract_first()
             # ret_data["cislo_jednotky"].append(cislo_jednotky)
             # url = jednot.css('attr(href)').extract_first()
-            url = "{}{}&render=true".format(self.init_url, jednot.xpath('@href').extract_first())
+            url = "{}{}".format(self.init_url, jednot.xpath('@href').extract_first())
             self.parse_type3(url=url, meta={"str_jednot": ret_data["cislo_jednotky"], "kod_budovy": kod_budovy})
 
         return ret_data

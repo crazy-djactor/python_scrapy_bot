@@ -1,0 +1,27 @@
+Metadata-Version: 2.1
+Name: scrapy-proxy-pool
+Version: 0.1.6
+Summary: Simple scrapy proxy pool
+Home-page: https://github.com/hyan15/scrapy-proxy-pool
+Author: Neal Wong
+Author-email: qwang16@olivetuniversity.edu
+License: MIT
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Intended Audience :: Developers
+Classifier: Operating System :: OS Independent
+Classifier: Framework :: Scrapy
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Requires-Dist: scrapy
+Requires-Dist: proxyscrape
+
+UNKNOWN
+
+
