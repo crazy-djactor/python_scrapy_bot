@@ -10,7 +10,7 @@ def main():
     connection = None
     # try:
     connection = psycopg2.connect(user="postgres",
-                                  password="123456789",
+                                  password="19900413",
                                   host="127.0.0.1",
                                   port="5432",
                                   database="postgres")
@@ -26,25 +26,21 @@ def main():
 
     print("Total rows are:  ", len(records))
     print("Printing each row")
-    data_filter = {
-        "kod_budovy": ["19374691"],
-        "typ_stavebniho_objektu": ["budova s číslem popisným"],
-        "cislo_domovni": [["35"]],
-        "nazev_casti_obce": ["Židenice"],
-        "kod_obce": ["582786"],
-
-        # "kod_budovy": ["19416768"],
-        # "typ_stavebniho_objektu": ["budova s číslem popisným"],
-        # "cislo_domovni": [["42"]],
-        # "nazev_casti_obce": ["Židenice"],
-        # "kod_obce": ["582786"],
-
-        # "kod_budovy": [],
-        # "typ_stavebniho_objektu": [],
-        # "cislo_domovni": [],
-        # "nazev_casti_obce": [],
-        # "kod_obce": [],
-    }
+    # data_filter = [{
+    #     "kod_budovy": "24661716",
+    #     "typ_stavebniho_objektu": "budova s číslem popisným",
+    #     "cislo_domovni": ["4292"],
+    #     "nazev_casti_obce": "Židenice",
+    #     "kod_obce": "582786",
+    # },
+    #     {
+    #         "kod_budovy": "1997468",
+    #         "typ_stavebniho_objektu": "budova s číslem popisným",
+    #         "cislo_domovni": ["4056"],
+    #         "nazev_casti_obce": "Židenice",
+    #         "kod_obce": "582786",
+    #     }
+    # ]
 
     data_filter = [[]]
     setting = get_project_settings()
@@ -60,10 +56,10 @@ def main():
         i = i + 1
 
     process = CrawlerProcess(setting)
-
-    # process.crawl(NinjacrawlSpider, param={"row_data": data_filter[0], "idx": 0, "con": connection})
     for x in range(num_procs):
         process.crawl(NinjacrawlSpider, param={"row_data": data_filter[x], "idx": x, "con": connection, "api_key": setting.attributes['API_KEY'].value})
+
+    # process.crawl(NinjacrawlSpider, param={"row_data": data_filter, "idx": 0, "con": connection, "api_key": setting.attributes['API_KEY'].value})
 
     process.start()
 

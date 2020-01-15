@@ -64,8 +64,10 @@ ROBOTSTXT_OBEY = False
 PROXY_POOL_ENABLED = False
 COOKIES_ENABLED = True
 PROXY_ADDR = 'http://api.scraperapi.com/?api_key='
-API_KEY = '706d6b1402b62de7cb68182b51ab6d9b'
+# API_KEY = '706d6b1402b62de7cb68182b51ab6d9b'
+API_KEY = '83e2639ed0ced822b50187bd317c5227'
 NUM_PROCS = 3
+DOWNLOAD_DELAY = 0.5
 
 DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.useragent.UserAgentMiddleware': None,

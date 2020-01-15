@@ -6,6 +6,16 @@ from lxml import html
 import requests
 import psycopg2
 
+cislo_lv = "Číslo LV:"
+obec = "Obec:"
+vymera = "Výměra [m"
+druh_pozemku = "Druh pozemku:"
+budova_s_cislem = "Budova s číslem popisným:"
+parcelni_cislo = "Parcelní číslo:"
+adresni_mista = "Adresní místa:"
+type2_parcel = "Stavba stojí na pozemku:"
+zpusob_vyuziti = "Způsob využití:"
+
 class NinjacrawlSpider(scrapy.Spider):
     name = 'ninjacrawl'
     # allowed_domains = ['https://nahlizenidokn.cuzk.cz/']
@@ -18,6 +28,7 @@ class NinjacrawlSpider(scrapy.Spider):
         self.init_url = self.proxy_url + 'https://nahlizenidokn.cuzk.cz/'
         # self.url = 'https://nahlizenidokn.cuzk.cz/VyberBudovu.aspx?typ=Stavba'
         # self.init_url = 'https://nahlizenidokn.cuzk.cz/'
+        self.download_delay = 0.5
         self.NET_SessionId = ''
         # self.spider_row_data =[
         #     {"kod_budovy": "19374704",
@@ -37,8 +48,8 @@ class NinjacrawlSpider(scrapy.Spider):
 
     def parse_type_back(self, response, row_data):
 
-        h2 = response.xpath('//*[@id="content"]/h2[1]/text()').extract_first()
-        if h2 == 'Vymezené jednotky':
+        h1 = response.xpath('//*[@id="content"]/h1[1]/text()').extract_first()
+        if h1 == 'Informace o stavbě':
             ret_data = self.type2_page(response, row_data["kod_budovy"])
             self.process_postgresql(ret_data, row_data["kod_budovy"])
         else:
@@ -216,26 +227,33 @@ class NinjacrawlSpider(scrapy.Spider):
         return True
 
     def type2_page(self, browser, kod_budovy):
-        ret_data = {"cislo_lv": browser.xpath('//*[@id="content"]//table[1]//tr[5]//td[2]//a/text()').extract_first(),
+        ret_data = {"cislo_lv": '',
                     "vymera": "", "druh_pozemku": "", "budova_s_cislem": "", "adresni_mista": [],
                     "omezeni_vlastnickeho_prava": [], "jine_zapisy": [], "rizeni_cenovy_udaj": "",
-                    "zpusob_vyuziti": browser.xpath(
-                        '//*[@id="content"]//table[1]//tr[8]//td[2]/text()').extract_first(),
-                    "parcelni_cislo": browser.xpath(
-                        '//*[@id="content"]//table[1]//tr[6]//td[2]//a/text()').extract_first(), "cislo_jednotky": [],
+                    "zpusob_vyuziti": '',
+                    "parcelni_cislo": '', "cislo_jednotky": [],
                     "vlastnicke_pravo": [], "podil": [], "invalid_record": ""}
+
+        tbl = browser.xpath('//table[@summary=\"Atributy stavby\"]//tr')  # list
+        for td_ in tbl:
+            if td_.xpath('.//td[1]/text()').extract_first() == cislo_lv:
+                ret_data["cislo_lv"] = td_.xpath('.//td[2]/a/text()').extract_first()
+            elif td_.xpath('.//td[1]/text()').extract_first() == zpusob_vyuziti:
+                ret_data["zpusob_vyuziti"] = td_.xpath('.//td[2]/text()').extract_first()
+            elif td_.xpath('.//td[1]/text()').extract_first() == type2_parcel:
+                for a_ in td_.xpath('.//td[2]//a'):
+                    ret_data["parcelni_cislo"] = ret_data["parcelni_cislo"] + " " + a_.xpath('text()').extract_first()
 
         zRuian = browser.xpath('//table[@summary=\"Informace z RÚIAN\"]//tr')  # list
         for td_ in zRuian:
             if td_.xpath('.//td[1]/text()').extract_first() == 'Adresní místa:':
-                ret_data["adresni_mista"] = td_.xpath('.//td[2]/a/text()').extract()
+                ret_data["adresni_mista"].append(td_.xpath('.//td[2]/a/text()').extract_first())
 
-        jednots = browser.xpath('//*[@id="content"]//table[2]//tr[1]//td[1]/a')
+        jednots = browser.xpath('//table[@summary=\"Vymezené jednotky\"]//tr[1]//td[1]/a')
         for jednot in jednots:
             ret_data["cislo_jednotky"].append(jednot.xpath("text()").extract_first())
 
         # str_jednot = ",".join(ret_data["cislo_jednotky"])
-
         for jednot in jednots:
             # cislo_jednotky = jednot.xpath("text()").extract_first()
             # ret_data["cislo_jednotky"].append(cislo_jednotky)
@@ -267,12 +285,15 @@ class NinjacrawlSpider(scrapy.Spider):
         liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[2]//td[2]/text()')
         if len(liststr) > 0:
             ret_data["typ_jednotky"] = str(liststr[0])
+
         liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[6]//td[2]//a/text()')
         if len(liststr) > 0:
             ret_data["cislo_lv_jednotka"] = str(liststr[0])
+
         liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[3]//td[2]/text()')
         if len(liststr) > 0:
             ret_data["zpusob_vyuziti_jednotky"] = str(liststr[0])
+
         liststr = response.xpath('//table[@summary="Atributy jednotky"]//tr[7]//td[2]/text()')
         if len(liststr) > 0:
             ret_data["podil_spol_casti"] = str(liststr[0])
@@ -282,7 +303,6 @@ class NinjacrawlSpider(scrapy.Spider):
                                        ret_data["zpusob_vyuziti_jednotky"], ret_data["podil_spol_casti"])
 
         ret_data["vlastnicke_pravo"] = []
-
         pravo_list = response.xpath('//table[@summary="Vlastníci, jiní oprávnění"]//tbody//tr')
         for tr_ in pravo_list[1:]:
             liststr = tr_.xpath('.//td[1]/text()')
@@ -350,17 +370,23 @@ class NinjacrawlSpider(scrapy.Spider):
             data_info["zpusob_vyuziti"],
             data_info["parcelni_cislo"])
         for ad in data_info["adresni_mista"]:
-            str_info = str_info + ad
+            if ad is not None:
+                str_info = str_info + ad
         for om in data_info["omezeni_vlastnickeho_prava"]:
-            str_info = str_info + om
+            if om is not None:
+                str_info = str_info + om
         for jz in data_info["jine_zapisy"]:
-            str_info = str_info + jz
+            if jz is not None:
+                str_info = str_info + jz
         for cj in data_info["cislo_jednotky"]:
-            str_info = str_info + cj
+            if cj is not None:
+                str_info = str_info + cj
         for vp in data_info["vlastnicke_pravo"]:
-            str_info = str_info + vp
+            if vp is not None:
+                str_info = str_info + vp
         for pd in data_info["podil"]:
-            str_info = str_info + pd
+            if pd is not None:
+                str_info = str_info + pd
         str_ret = hashlib.md5(str_info.encode('utf-8')).hexdigest()
         return str_ret
 
@@ -427,18 +453,32 @@ class NinjacrawlSpider(scrapy.Spider):
             cur.close()
 
     def type1_page(self, browser):
-        ret_data = {"cislo_lv": browser.xpath('//*[@id="content"]//table[1]//tr[4]//td[2]//a/text()').extract_first(),
-                    "vymera": browser.xpath('//*[@id="content"]//table[1]//tr[5]//td[2]/text()').extract_first(),
-                    "druh_pozemku": browser.xpath('//*[@id="content"]//table[1]//tr[9]//td[2]/text()').extract_first(),
-                    "budova_s_cislem": browser.xpath(
-                        '//*[@id="content"]//table[2]//tr[1]//td[2]/text()').extract_first(), "adresni_mista": [],
+        ret_data = {"cislo_lv": '',
+                    "vymera": '',
+                    "druh_pozemku": '',
+                    "budova_s_cislem": '', "adresni_mista": [],
                     "omezeni_vlastnickeho_prava": [], "jine_zapisy": [], "rizeni_cenovy_udaj": "", "zpusob_vyuziti": "",
-                    "parcelni_cislo": browser.xpath(
-                        '//*[@id="content"]//table[1]//tr[1]//td[2]//a/text()').extract_first(), "cislo_jednotky": [],
+                    "parcelni_cislo": '', "cislo_jednotky": [],
                     "vlastnicke_pravo": [], "podil": [], "invalid_record": ""}
 
-        for ad_mista in browser.xpath('//*[@id="content"]//table[2]//tr[5]//td[2]/a'):
-            ret_data["adresni_mista"].append(ad_mista.xpath('text()').extract_first())
+        tbl = browser.xpath('//table[@summary=\"Atributy parcely\"]//tr')   # list
+        for td_ in tbl:
+            if td_.xpath('.//td[1]/text()').extract_first() == cislo_lv:
+                ret_data["cislo_lv"] = td_.xpath('.//td[2]/a/text()').extract_first()
+            elif td_.xpath('.//td[1]/text()').extract_first()[0:5] == vymera[0:5]:
+                ret_data["vymera"] = td_.xpath('.//td[2]/text()').extract_first()
+            elif td_.xpath('.//td[1]/text()').extract_first() == druh_pozemku:
+                ret_data["druh_pozemku"] = td_.xpath('.//td[2]/text()').extract_first()
+            elif td_.xpath('.//td[1]/text()').extract_first() == parcelni_cislo:
+                ret_data["parcelni_cislo"] = td_.xpath('.//td[2]/a/text()').extract_first()
+
+        tbl = browser.xpath('//table[@summary=\"Atributy stavby\"]//tr')  # list
+        for td_ in tbl:
+            if td_.xpath('.//td[1]/text()').extract_first() == budova_s_cislem:
+                ret_data["budova_s_cislem"] = td_.xpath('.//td[2]/a/text()').extract_first() + td_.xpath('.//td[2]/text()').extract_first()
+            elif td_.xpath('.//td[1]/text()').extract_first() == adresni_mista:
+                for ad_mista in td_.xpath('.//td[2]/a'):
+                    ret_data["adresni_mista"].append(ad_mista.xpath('text()').extract_first())
 
         ret_data["vlastnicke_pravo"] = []  # this is list
         ret_data["podil"] = []
