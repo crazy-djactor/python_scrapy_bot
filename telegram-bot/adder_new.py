@@ -6,6 +6,7 @@ from telethon.tl.types import ChannelParticipantsSearch, PeerChannel, InputUser,
 from telethon.tl.functions.channels import GetParticipantsRequest, InviteToChannelRequest, JoinChannelRequest
 from telethon.tl.functions.messages import ImportChatInviteRequest
 import os
+import csv
 import time
 import sys
 import json
@@ -147,7 +148,7 @@ def add_users(client, file_name):
     users = None
     try:
         with open(file_name, 'r') as f:
-                users = json.load(f)
+            users = json.load(f)
 
     except Exception:
         print('Invalid file name, make sure you have added extension or if file even exists, if not, run scrape_channel_users.py to create one!')
@@ -175,10 +176,13 @@ def add_users(client, file_name):
         if add_user_count >= 50:
             break
         try:
-            client(InviteToChannelRequest(InputChannel(avail_channels[channel_index][1], avail_channels[channel_index][2]), item))
+            result = client(InviteToChannelRequest(InputChannel(avail_channels[channel_index][1], avail_channels[channel_index][2]),
+                                          item))
+            if len(result.users) > 0:
+                add_user_count = add_user_count + 1
+                print('---Adding chunk of 1 users...')
+            # print(result.stringify())
 
-            print('---Adding chunk of '+ str(len(item)) +' users...')
-            add_user_count = add_user_count + 1
             time.sleep(2)
         except Exception as e:
             print(str(e))
@@ -252,7 +256,8 @@ if __name__ == '__main__':
         # except Exception as e:
         #     pass
         file_name = "{1}\\{0}.json".format(user["phone"], "user_res")
-        scrape(client, file_name)
+
+        # scrape(client, file_name)
         # file_name = "{0}.json".format(user["phone"])
 
         # file_name= "saksham.json"
