@@ -1,0 +1,13 @@
+certifi==2019.11.28
+chardet==3.0.4
+coverage==5.0
+html2text==2019.9.26
+idna==2.8
+psycopg2==2.8.4
+pyaes==1.6.1
+pyasn1==0.4.8
+requests==2.22.0
+rsa==4.0
+selenium==3.141.0
+Telethon==0.15.2.3
+urllib3==1.25.7
