@@ -47,7 +47,6 @@ class NinjacrawlSpider(scrapy.Spider):
         # yield scrapy.Request(url, method="POST", callback=self.parse)
 
     def parse_type_back(self, response, row_data):
-
         h1 = response.xpath('//*[@id="content"]/h1[1]/text()').extract_first()
         if h1 == 'Informace o stavbě':
             ret_data = self.type2_page(response, row_data["kod_budovy"])
@@ -58,7 +57,6 @@ class NinjacrawlSpider(scrapy.Spider):
         return
 
     def parse_obec_click(self, response, row_data):  # input 4053
-
         ctl00_scriptManager_TSM = self.checkvalid(
             response.css('input#ctl00_scriptManager_TSM::attr(value)').extract_first())
         # lastfocus = self.checkvalid(response.css('input#__LASTFOCUS::attr(value)').extract_first())
@@ -175,7 +173,8 @@ class NinjacrawlSpider(scrapy.Spider):
         # st2 = st1[0].split("=")
         # self.NET_SessionId = st2[1]
         for row_data in self.spider_row_data:
-            txtobec = '582786'
+            # txtobec = '582786'
+            txtobec = str(row_data['kod_obce'])
             if not self.first_searchbutton(response, kod_obce=txtobec):
                 return
 
