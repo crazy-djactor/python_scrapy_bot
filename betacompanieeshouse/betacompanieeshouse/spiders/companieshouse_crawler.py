@@ -17,6 +17,7 @@ class CompanieshouseCrawlerSpider(scrapy.Spider):
             url = "https://beta.companieshouse.gov.uk/company/{0}/officers".format(company_num)
             yield scrapy.Request(url, callback=self.parse, meta={"company_num": company_num})
 
+
     def parse(self, response):
         company_num = response.meta["company_num"]
         officer_name_a = response.xpath("//span[@id='officer-name-1']")

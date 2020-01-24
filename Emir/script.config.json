@@ -1,0 +1,41 @@
+[
+  {
+    "source":"istockphoto",
+    "config":{
+      "images":".unzoomed > img",
+      "related_url":"#adp_same_series_carousel > section > gi-carousel > div > div.scroll_area > ul > li:nth-child({}) > a > img",
+      "new_sources_url":"#adp_carousel > section > gi-carousel > div > div.scroll_area > ul > li:nth-child({}) > a > img",
+      "keywords":".keywords-links > li"
+    },
+    "urls":[
+      "https://www.istockphoto.com/photo/amazing-young-woman-posing-in-apricot-tree-orchard-at-spring-gm1129434176-298351971",
+      "https://www.istockphoto.com/photo/close-up-of-a-woman-with-makeup-on-wearing-spring-flowers-gm177047299-19515135"
+    ]
+  },
+  {
+    "source":"shutterstock",
+    "config":{
+      "images":"div[data-automation='RelatedImagesGrid_same_model'] > img",
+      "related_url":"div[data-automation='RelatedImagesGrid_same_model'] > img",
+      "new_sources_url":"a[data-track='similar']",
+      "keywords":"div[data-automation='ExpandableKeywordsList_container_div'] > a"
+    },
+    "urls":[
+      "https://www.shutterstock.com/image-photo/woman-beauty-face-healthy-skin-color-1573024582",
+      "https://www.shutterstock.com/image-photo/young-man-looking-his-side-113510497"
+    ]
+  },
+  {
+    "source":"gettyimages",
+    "config":{
+      "images":"img.asset-card__image",
+      "related_url":".same-series__view-all a",
+      "new_sources_url":".grid-heading__link > a:nth-child(1)",
+      "keywords":".asset-keywords__list li"
+    },
+    "urls":[
+      "https://www.gettyimages.com/detail/photo/beautiful-woman-with-natural-make-up-royalty-free-image/897056188",
+      "https://www.gettyimages.com/detail/photo/close-up-beautiful-young-woman-face-portrait-royalty-free-image/1032186348?uiloc=thumbnail_similar_images_adp"
+    ]
+  }
+]
