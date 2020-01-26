@@ -1,4 +1,6 @@
+
 import json
+import DbManage from .manage_db
 
 config = None
 myConfig = None
@@ -93,12 +95,14 @@ def parseConfig():
 
 
 def main():
+    db = DBManage()
     for each_config in globals()['config']:
         if each_config["source"] == 'istockphoto':
             globals()['myConfig'] = each_config
             for e_url in globals()['myConfig']["urls"]:
                 rl = iimgRequest(url=e_url)
-                rl.start_request()
+                data = rl.start_request()
+                db.parseData(data=data)
 
 
 if __name__ == '__main__':
