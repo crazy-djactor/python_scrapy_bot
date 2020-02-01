@@ -10,6 +10,13 @@ DB_CONFIG = {
 }
 
 
+TAGS_FIELD = {
+    "PK": "pk",
+    "LARGE": "large_image",
+    "TAGS": "tags"
+}
+
+
 URL_FIELD = {
     "PK": "pk",
     "SOURCE": "source_url",
@@ -25,3 +32,5 @@ IMAGE_FIELD = {
     "LARGE": "large_image",
     "STATUS": "status"
 }
+
+

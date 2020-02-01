@@ -11,6 +11,7 @@
 #
 # ASN.1 source from:
 # https://www.rfc-editor.org/rfc/rfc3770.txt
+# https://www.rfc-editor.org/errata/eid234
 #
 
 from pyasn1.type import constraint
@@ -49,8 +50,9 @@ SSIDList.subtypeSpec=constraint.ValueSizeConstraint(1, MAX)
 
 # Wireless LAN SSID Attribute Certificate Attribute
 # Uses same syntax as the certificate extension: SSIDList
+# Correction for https://www.rfc-editor.org/errata/eid234
 
-id_aca_wlanSSID = univ.ObjectIdentifier('1.3.6.1.5.5.7.10.6')
+id_aca_wlanSSID = univ.ObjectIdentifier('1.3.6.1.5.5.7.10.7')
 
 
 # Map of Certificate Extension OIDs to Extensions
@@ -61,3 +63,13 @@ _certificateExtensionsMap = {
 }
 
 rfc5280.certificateExtensionsMap.update(_certificateExtensionsMap)
+
+
+# Map of AttributeType OIDs to AttributeValue added to the
+# ones that are in rfc5280.py
+
+_certificateAttributesMapUpdate = {
+    id_aca_wlanSSID: SSIDList(),
+}
+
+rfc5280.certificateAttributesMap.update(_certificateAttributesMapUpdate)

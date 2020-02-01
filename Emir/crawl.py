@@ -19,7 +19,7 @@ class iimgRequest:
         options = webdriver.ChromeOptions()
         options.binary_location = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
         options.headless = True
-        browser = webdriver.Chrome(r'./chromedriver.exe', chrome_options=options)
+        browser = webdriver.Chrome(r'chromedriver.exe', chrome_options=options)
         return browser
 
     def __init__(self, url):
@@ -123,7 +123,7 @@ class EveryWorker(threading.Thread):
             source_url = one_row[1]
             rl = iimgRequest(url=source_url)
             data = rl.start_request()
-            self.db.parseData(data=data, lock=self._key_lock)
+            self.db.parseData(data=data, lock=self._key_lock, pk=pk)
 
 
 def main():
@@ -136,7 +136,7 @@ def main():
             for e_url in globals()['myConfig']["urls"]:
                 rl = iimgRequest(url=e_url)
                 data = rl.start_request()
-                db.parseData(data=data, lock=_key_lock)
+                db.parseData(data=data, lock=_key_lock, pk=-1)
                 # break
 
     # while True:
@@ -149,7 +149,7 @@ def main():
     #     data = rl.start_request()
     #     db.parseData(data=data)
 
-    num_procs = 3
+    num_procs = 1
     workers = []
     for x in range(num_procs):
         worker = EveryWorker(t_id=x, lock=_key_lock)
@@ -161,8 +161,8 @@ def main():
     for worker in workers:
         worker.join()
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     parseConfig()
     if config is not None:
         main()

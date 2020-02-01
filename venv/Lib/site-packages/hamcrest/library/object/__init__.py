@@ -1,8 +1,7 @@
-from __future__ import absolute_import
 """Matchers that inspect objects and classes."""
 
 from .haslength import has_length
-from .hasproperty import has_property, has_properties
+from .hasproperty import has_properties, has_property
 from .hasstring import has_string
 
 __author__ = "Jon Reid"

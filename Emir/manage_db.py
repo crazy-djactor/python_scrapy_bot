@@ -1,6 +1,6 @@
 import hashlib
 
-from dbconst import DB_CONFIG, URL_FIELD, IMAGE_FIELD
+from dbconst import DB_CONFIG, URL_FIELD, IMAGE_FIELD, TAGS_FIELD
 import mysql.connector
 from mysql.connector import pooling
 
@@ -26,7 +26,7 @@ class DbManage:
         self.cnx.disconnect()
 
 
-    def parseData(self, data, lock):
+    def parseData(self, data, lock, pk):
         # retValue = {
         #     "image": "",
         #     "related": [],
@@ -38,13 +38,22 @@ class DbManage:
         with lock:
             print(data)
             try:
+                if pk != -1 and data["image_url"] == '':
+                    cursor = self.cnx.cursor()
+                    update_sql = "UPDATE {} SET {}={} WHERE {}='{}'".format(DB_CONFIG["TBL_URL"], URL_FIELD["STATUS"],
+                                                                            1, URL_FIELD["PK"], pk)
+                    cursor.execute(update_sql)
+                    self.cnx.commit()
+                    cursor.close()
+                    return
+
                 cursor = self.cnx.cursor()
                 checksum = hashlib.md5(data["image"].encode('utf-8')).hexdigest()
                 query = "SELECT {} FROM {} WHERE {}='{}' LIMIT 1".format(URL_FIELD["PK"], DB_CONFIG["TBL_URL"], URL_FIELD["CHECKSUM"], checksum)
                 cursor.execute(query)
                 url_fields = [URL_FIELD["SOURCE"], URL_FIELD["PARENT"], URL_FIELD["STATUS"], URL_FIELD["CHECKSUM"]]
                 params = ",".join(url_fields)
-                pk = 0
+                current_pk = 0
                 result = cursor.fetchone()
                 if cursor.rowcount == 0:
                     cursor.close()
@@ -71,6 +80,16 @@ class DbManage:
                                                 IMAGE_FIELD["ORG_SRCPK"], pk)
                 cursor = self.cnx.cursor()
                 cursor.execute(image_tbl_sql)
+                self.cnx.commit()
+                cursor.close()
+
+                tag_string = " ".join(data["keywords"])
+                tag_tbl_sql = "INSERT INTO {} ({}, {}, {}) SELECT {}, '{}', '{}' WHERE NOT EXISTS(SELECT 1 FROM {} " \
+                              "WHERE {}={})".format(DB_CONFIG["TBL_TAGS"], TAGS_FIELD["PK"], TAGS_FIELD["LARGE"],
+                                                    TAGS_FIELD["TAGS"], pk, data["image_url"], tag_string,
+                                                    DB_CONFIG["TBL_TAGS"], TAGS_FIELD["PK"], pk)
+                cursor = self.cnx.cursor()
+                cursor.execute(tag_tbl_sql)
                 self.cnx.commit()
                 cursor.close()
 
@@ -147,6 +166,8 @@ class DbManage:
             cursor = self.cnx.cursor()
             cursor.execute(select_sql)
             result = cursor.fetchone()
+            if result is None:
+                return None
             cursor.close()
             cursor = self.cnx.cursor()
             update_sql = "UPDATE {} SET {}={} WHERE {}={}".format(DB_CONFIG["TBL_URL"], URL_FIELD["STATUS"], 2,
