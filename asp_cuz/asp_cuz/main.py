@@ -56,9 +56,10 @@ def main():
         i = i + 1
 
     process = CrawlerProcess(setting)
+    
     for x in range(num_procs):
-        process.crawl(NinjacrawlSpider, param={"row_data": data_filter[x], "idx": x, "con": connection, "api_key": setting.attributes['API_KEY'].value})
-
+        process.crawl(NinjacrawlSpider, param={"row_data": data_filter[x], "idx": x, "con": connection,
+                                               "api_key": setting.attributes['API_KEY'].value})
     # process.crawl(NinjacrawlSpider, param={"row_data": data_filter, "idx": 0, "con": connection, "api_key": setting.attributes['API_KEY'].value})
 
     process.start()
